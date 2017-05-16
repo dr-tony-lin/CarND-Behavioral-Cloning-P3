@@ -172,7 +172,7 @@ were also included.
 
 ## Results
 
-The training accuracy and validation accuracy is show in the following figure:
+A typical training and validation loss obtained in one of the trainings is show in the following figure. The validation set has lower loss than the training indicating there is no overfitting issue:
 
 ![image2]
 
