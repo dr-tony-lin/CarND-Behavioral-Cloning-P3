@@ -158,7 +158,7 @@ list into an image list.
 The final training consists of 77,101 training samples, and 8,567 validation samples.
 
 The network were able to accomplish over 97% validation accuracy at the initial epoch, and trained models were saved after
-reaching 99.4% validation accuracy.
+reaching 99.4% validation accuracy. The training time for 60 epochs was around 8200 seconds on a Windows 10 PC with Intel 7700K CPU, GTX1080, and 16GB of RAM.
 
 The initial training contains only the center lane driving samples, and the car went off the road quickly. Corrected driving
 samples were progressively added in seperated trainings until results were acceptable. The followings were observed:
