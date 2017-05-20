@@ -14,7 +14,7 @@ tf.app.flags.DEFINE_integer('trainings', 1, "The number of trainings.")
 tf.app.flags.DEFINE_integer('epochs', 200, "The number of epochs per train.")
 tf.app.flags.DEFINE_integer('batch', 256, "The batch size.")
 
-tf.app.flags.DEFINE_float('cr', 0.2, "The left/right cammera correction.")
+tf.app.flags.DEFINE_float('cr', 0.05, "The left/right cammera correction.")
 tf.app.flags.DEFINE_float('lr', None, "The learning rate.")
 tf.app.flags.DEFINE_float('drr', 0.5, "The dropout retention ratio.")
 tf.app.flags.DEFINE_float('accept', 0.994, "The accepted training validation accuracy.")

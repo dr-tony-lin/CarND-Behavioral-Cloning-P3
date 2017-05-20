@@ -178,6 +178,9 @@ def get_samples(dirs, flip=True, all_cameras=False, cr=[0.2, -0.2]):
     for folder in dirs:
         repeats = None
         percent = None
+        left = False
+        right = False
+        center = True
         if '*' in folder:
             folder, r = folder.split('*')
             value = float(r.strip())
@@ -186,6 +189,20 @@ def get_samples(dirs, flip=True, all_cameras=False, cr=[0.2, -0.2]):
                 percent = value / repeats
             elif value < 0.99:
                 percent = value
+        if all_cameras:
+            left = True
+            right = True
+        if '<' in folder:
+            left = True
+            folder = folder.replace('<', '')
+        if '>' in folder:
+            right = True
+            folder = folder.replace('>', '')
+        if '!' in folder:
+            center = False
+            folder = folder.replace('!', '')
+        if not (left or right or center): # By default center will be used
+            center = True
 
         folder = folder.strip() + "/"
         images_folder = folder + "IMG/"
@@ -203,17 +220,17 @@ def get_samples(dirs, flip=True, all_cameras=False, cr=[0.2, -0.2]):
                 center = float(row[3])
                 m = []
                 imgs = []
-                if all_cameras: # Include all images
-                    # create adjusted steering measurements for the side camera images
-                    left = center + cr[0]
-                    right = center + cr[1]
-                    imgs += [images_folder + basename(row[1].strip()),
-                             images_folder + basename(row[0].strip()),
-                             images_folder + basename(row[2].strip())]
-                    m += [left, center, right]
-                else: # Only center images
+                if center: # Include center image
                     imgs.append(images_folder + basename(row[0].strip()))
                     m.append(center)
+                if left: # Include left image
+                    if row[1]:
+                        imgs.append(images_folder + basename(row[1].strip()))
+                        m.append(center + cr[0])
+                if right: # Include right image
+                    if row[2]:
+                        imgs.append(images_folder + basename(row[2].strip()))
+                        m.append(center + cr[1])
                 if flip: # Also include flipped images
                     imgs += ['flip-' + im for im in imgs]
                     m += [-d for d in m]

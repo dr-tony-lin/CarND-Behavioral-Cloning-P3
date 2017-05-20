@@ -1,6 +1,8 @@
 '''
 Drive the car in simulator
 '''
+import math
+from threading import Thread
 import argparse
 import base64
 from datetime import datetime
@@ -18,11 +20,11 @@ from flask import Flask
 import h5py
 from keras import __version__ as keras_version
 
+import utils
 import model as M
 
 sio = socketio.Server()
 app = Flask(__name__)
-model = None
 prev_image_array = None
 
 class SimplePIController:
@@ -45,11 +47,37 @@ class SimplePIController:
 
         return self.Kp * self.error + self.Ki * self.integral
 
+class DriveServer(Thread):
+    def __init__(self, checkpoint, max_speed):
+        super().__init__()
+        self.checkpoint = checkpoint
+        self.model = None
+        self.controller = SimplePIController(0.1, 0.002)
+        self.max_speed = max_speed
+        self.controller.set_desired(max_speed)
 
-controller = SimplePIController(0.1, 0.002)
-set_speed = 15
-controller.set_desired(set_speed)
+    def run(self):
+        global app
+        app = socketio.Middleware(sio, app)
+        # Load the trained model
+        self.model = M.load_checkpoint(self.checkpoint)
+        # deploy as an eventlet WSGI server
+        eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
 
+server_thread = None
+def send_control(steering_angle, throttle):
+    sio.emit(
+        "steer",
+        data={
+            'steering_angle': steering_angle.__str__(),
+            'throttle': throttle.__str__()
+        },
+        skip_sid=True)
+
+@sio.on('connect')
+def connect(sid, environ):
+    print("connect ", sid)
+    send_control(0, 0)
 
 @sio.on('telemetry')
 def telemetry(sid, data):
@@ -59,15 +87,15 @@ def telemetry(sid, data):
         # The current throttle of the car
         throttle = data["throttle"]
         # The current speed of the car
-        speed = data["speed"]
+        speed = float(data["speed"])
         # The current image from the center camera of the car
         imgString = data["image"]
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
         image_array = image_array.reshape((3, 160, 320))
-        steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
-        throttle = controller.update(float(speed))
-
+        steering_angle = float(server_thread.model.predict(image_array[None, :, :, :], batch_size=1))
+        throttle = server_thread.controller.update(float(speed))
+        server_thread.controller.set_desired(5+math.pow(1.0-abs(steering_angle), 2)*(server_thread.max_speed - 5))
         print(steering_angle, speed, throttle)
         send_control(steering_angle, throttle)
 
@@ -80,23 +108,6 @@ def telemetry(sid, data):
         # NOTE: DON'T EDIT THIS.
         sio.emit('manual', data={}, skip_sid=True)
 
-
-@sio.on('connect')
-def connect(sid, environ):
-    print("connect ", sid)
-    send_control(0, 0)
-
-
-def send_control(steering_angle, throttle):
-    sio.emit(
-        "steer",
-        data={
-            'steering_angle': steering_angle.__str__(),
-            'throttle': throttle.__str__()
-        },
-        skip_sid=True)
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Remote Driving')
     parser.add_argument(
@@ -105,12 +116,19 @@ if __name__ == '__main__':
         help='Path to model h5 file. Model should be on the same path.'
     )
     parser.add_argument(
+        'max_speed',
+        type=int,
+        default=20,
+        help='Maximum driving speed.'
+    )
+    parser.add_argument(
         'image_folder',
         type=str,
         nargs='?',
         default='',
         help='Path to image folder. This is where the images from the run will be saved.'
     )
+
     args = parser.parse_args()
 
     # check that model Keras version is same as local Keras version
@@ -121,9 +139,6 @@ if __name__ == '__main__':
     if model_version != keras_version:
         print('You are using Keras version ', keras_version,
               ', but the model was built using ', model_version)
-
-    # Load the model
-    model = M.load_checkpoint(args.model)
 
     if args.image_folder != '':
         print("Creating image folder at {}".format(args.image_folder))
@@ -136,8 +151,19 @@ if __name__ == '__main__':
     else:
         print("NOT RECORDING THIS RUN ...")
 
-    # wrap Flask application with engineio's middleware
-    app = socketio.Middleware(sio, app)
+    server_thread = DriveServer(args.model, args.max_speed)
 
-    # deploy as an eventlet WSGI server
-    eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
+    def command_handler(command):
+        '''
+        Handler user command
+        '''
+        if command == 'exit':
+            print("Exiting ...")
+            os._exit(0)
+        else:
+            print("Unknown command: {}!".format(command))
+
+    input_thread = utils.accept_inputs(command_handler)
+
+    server_thread.start()
+    server_thread.join()

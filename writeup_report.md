@@ -48,6 +48,8 @@ python drive.py model.h5
 
 # Usage Guide
 
+## Training
+
 Training and testing can be launched with the following command:
 
 ```
@@ -55,7 +57,14 @@ python run.py --dirs folder_list --checkpoint checkpoint_name --batch batch_size
 --all_cameras boolean --flip boolean
 ```
 * --checkpoint: Path and base name of checkpoints to to saved for epochs that meet the acceptance threshold
-* --dirs: training sample folders, seperated by ':', default is 'data' folder. The probability of images in a folder to be used in training and validation process can speficied by appending the name with '*n' where 'n' is a number.
+* --dirs: training sample folders, seperated by ':', default is 'data' folder. The format for a folder is name[+[<][>][!]][*n].
+```
+To specify which cameras should be used, appends '+' followed by one or more of '<!>' before * to include
+left(<), center(!), and/or right(>) cameras
+
+The probability of images in a folder to be used in training and validation process can speficied by appending the name with '*n'
+where 'n' is a number.
+```
 * --test: testing sample folder, default is None
 * --model: the saved checkopint to load to continue/transfer learning, default is None
 * --trainings: The number of independent trainings to perform, default is 1
@@ -64,7 +73,7 @@ python run.py --dirs folder_list --checkpoint checkpoint_name --batch batch_size
 * --lr: the learning rate. Default is None, and will be inferred automatically depending on the batch size
 * --drr: the dropout retention ratio, default is 0.5
 * --accept: the accepted training validation accuracy. Default is 0.994
-* --cr: the left/right cammera correction, default is 0.2
+* --cr: the left/right cammera correction, default is 0.05
 * --all_cameras: True to use three cameras, False to use the center camera. Default is False
 * --flip: True to include flipped images, Default is True
 * --cont: True to continue from the trained model, False to train from weights, default is False
@@ -77,6 +86,19 @@ Furthermore, the code can take the following command from the keyboard during th
 4. *test*: start test against all saved models in the desginated checkpoint folders
 5. *stop*: stop training after the current epoch
 4. *exit*: exit the program
+
+## Driving
+
+Self driving control can be launched with:
+```
+python drive.py model max_speed image_folder
+```
+
+* model: the trained model file, e.g. model.h5
+* max_speed: the maximum car speed
+* image_folder: the folder for storing the driving images
+
+The program can be stopped by entering 'exit' command anytime during the driving.
 
 # Model Architecture
 
