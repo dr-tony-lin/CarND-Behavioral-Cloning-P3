@@ -73,7 +73,7 @@ class Trainer(Thread, Callback):
         if self.config.model is None: # Train new model
             optimizer = Adam(lr=self.config.lr)
             self.model = model.create_nvidia_model(input_shape=(3, 160, 320), cropping=((50, 20), (0, 0)),
-                                                   dropout=self.config.drr)
+                                                   dropout=1.0-self.config.drr)
             self.model = model.create_training_model(self.model, optimizer=optimizer)
         else: # Continue from the given training model
             if self.config.cont:
@@ -83,7 +83,7 @@ class Trainer(Thread, Callback):
                 print("Train from {}".format(self.config.model))
                 optimizer = Adam(lr=self.config.lr)
                 self.model = model.create_nvidia_model(input_shape=(3, 160, 320), cropping=((50, 20), (0, 0)),
-                                                       dropout=self.config.drr)
+                                                       dropout=1.0-self.config.drr)
                 self.model = model.create_training_model(self.model, optimizer=optimizer)
                 model.load_checkpoint(self.config.model, self.model)
 

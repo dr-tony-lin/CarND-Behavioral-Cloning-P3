@@ -7,7 +7,9 @@ import threading
 import csv
 import numpy as np
 import cv2
+from PIL import Image
 from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
 
 import matplotlib.pyplot as plt
 
@@ -85,7 +87,7 @@ def flip_image(image):
     image = np.fliplr(image)
     return image
 
-def rand_visual(images, rows=4, columns=16, fig=None, indices=None):
+def rand_visual(images, rows=4, columns=16, size=(2,2), fig=None, indices=None):
     '''
     Randomly show images from images
 
@@ -93,14 +95,15 @@ def rand_visual(images, rows=4, columns=16, fig=None, indices=None):
         images: the image array
         rows: number of rows to show
         columns: number of columns to show
-        grey: True if the images are greyscale
         fig: the matplotlib figure to show the images
+        indices: the indices of images to show
     '''
+    print(images.shape)
     nTypes = len(images)
     nImages = len(images[1])
     if fig is None:
         fig = plt.figure()
-        fig.set_size_inches(columns, rows*nTypes)
+        fig.set_size_inches(columns*size[0], rows*nTypes*size[1])
 
     for i in range(rows):
         if indices is None:
@@ -134,7 +137,7 @@ def convolution_output_size(size, kernel, stride, padding='SAME'):
         return (math.ceil(float(size[0] - kernel[0] + 1) / float(stride[0])),
                 math.ceil(float(size[1] - kernel[1] + 1) / float(stride[1])))
 
-def DrivingDataGenerator(images, data, batch_size=256):
+def DrivingDataGenerator(images, data, batch_size=256, channel_first=True):
     """
     Driving data generator.
     Arguments:
@@ -153,13 +156,14 @@ def DrivingDataGenerator(images, data, batch_size=256):
                 if isinstance(image, str): # file name
                     if 'flip-' in image:
                         image = image[5:]
-                        img_out.append(flip_image(cv2.imread(image)))
+                        img_out.append(np.array((Image.open(image).transpose(Image.FLIP_LEFT_RIGHT))))
                     else:
-                        img_out.append(cv2.imread(image))
+                        img_out.append(np.array(Image.open(image)))
                 else: # An image
                     img_out.append(image)
             img_out = np.array(img_out)
-            img_out = img_out.reshape((img_out.shape[0], img_out.shape[3], img_out.shape[1], img_out.shape[2]))
+            if channel_first:
+                img_out = img_out.reshape((img_out.shape[0], img_out.shape[3], img_out.shape[1], img_out.shape[2]))
             yield (img_out, np.array(data[index:index+batch_size]))
 
 def get_samples(dirs, flip=True, all_cameras=False, cr=[0.2, -0.2]):
@@ -172,8 +176,21 @@ def get_samples(dirs, flip=True, all_cameras=False, cr=[0.2, -0.2]):
     images = []
     data = []
     for folder in dirs:
-        folder += "/"
+        repeats = None
+        percent = None
+        if '*' in folder:
+            folder, r = folder.split('*')
+            value = float(r.strip())
+            if value > 1.01:
+                repeats = int(math.ceil(value))
+                percent = value / repeats
+            elif value < 0.99:
+                percent = value
+
+        folder = folder.strip() + "/"
         images_folder = folder + "IMG/"
+        folder_images = []
+        folder_data = []
         with open(folder + "driving_log.csv", 'r') as file:
             rows = csv.reader(file)
             first = True
@@ -200,8 +217,18 @@ def get_samples(dirs, flip=True, all_cameras=False, cr=[0.2, -0.2]):
                 if flip: # Also include flipped images
                     imgs += ['flip-' + im for im in imgs]
                     m += [-d for d in m]
-                images += imgs
-                data += m
+                folder_images += imgs
+                folder_data += m
+        if repeats  is not None:
+            folder_images = folder_images * repeats
+            folder_data = folder_data * repeats
+        elif percent is not None:
+            folder_images, folder_data = shuffle(folder_images, folder_data)
+            # Split the training samples with the given percentage
+            size = int(len(folder_images) * percent)
+            folder_images, folder_data = folder_images[:size], folder_data[:size]
+        images += folder_images
+        data += folder_data
     return images, data
 
 def accept_inputs(callback):

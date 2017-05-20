@@ -26,17 +26,6 @@ tf.app.flags.DEFINE_bool('cont', False, "True to continue from the trained model
 config = tf.app.flags.FLAGS
 config.save_next = False
 config.dirs = config.dirs.split(':')
-dirs = []
-# Expand repeated directories, e.g. a*3 will become a, a, a
-for d in config.dirs:
-    if '*' in d:
-        d, repeats = d.split('*')
-        d = d.strip()
-        dirs += ([d for i in range(int(repeats.strip()))])
-    else:
-        dirs.append(d.strip())
-
-config.dirs = dirs
 
 def lrFromBatch():
     # The optimal learning rate for batch size 256 is 0.001, while the optrimal rate for batch size 16 is about 0.0001.

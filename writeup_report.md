@@ -13,7 +13,15 @@ The goals / steps of this project are the following:
 [//]: # (Image References)
 
 [image1]: model.png "Model Visualization"
-[image2]: history.png "Training accuracy"
+[image2]: history1.png "Training accuracy"
+[image3]: examples/center.png "Drive alone the center of lane"
+[image4]: examples/center-flipped.png  "Drive alone the center of lane flipped"
+[image5]: examples/center_reverse.png "Drive alone the center of lane counter clockwise"
+[image6]: examples/center-reverse-flipped.png "Drive alone the center of lane counter clockwise and flipped"
+[image7]: examples/side1.png "Drive side of road to train correction"
+[image8]: examples/side2.png  "Drive side of road to train correction"
+[image9]: examples/side4.png  "Drive side of road to train correction"
+[image10]: examples/side5.png  "Drive side of road to train correction"
 [video1]: run1.mp4 "Autonomous drive video"
 
 # Files Submitted & Code Quality
@@ -47,7 +55,7 @@ python run.py --dirs folder_list --checkpoint checkpoint_name --batch batch_size
 --all_cameras boolean --flip boolean
 ```
 * --checkpoint: Path and base name of checkpoints to to saved for epochs that meet the acceptance threshold
-* --dirs: training sample folders, seperated by :, default is data folder
+* --dirs: training sample folders, seperated by ':', default is 'data' folder. The probability of images in a folder to be used in training and validation process can speficied by appending the name with '*n' where 'n' is a number.
 * --test: testing sample folder, default is None
 * --model: the saved checkopint to load to continue/transfer learning, default is None
 * --trainings: The number of independent trainings to perform, default is 1
@@ -69,7 +77,6 @@ Furthermore, the code can take the following command from the keyboard during th
 4. *test*: start test against all saved models in the desginated checkpoint folders
 5. *stop*: stop training after the current epoch
 4. *exit*: exit the program
-
 
 # Model Architecture
 
@@ -94,12 +101,12 @@ My model consists of a convolution neural network based on Nvidia Self-Driving C
 | Leaky RELU			|												        |
 | Convolution 3x3     	| 1x1 stride, valid padding, filters 64      	        |
 | Leaky RELU			|												        |
+| Dropout       		| keep probability: 50%, adjustable                     |
 | Fully connected		| Activation elu, units 100             		        |
-| Dropout       		| keep probability: 50%    		                        |
+| Dropout       		| keep probability: 50%, adjustable                     |
 | Fully connected		| Activation elu, units 100             		        |
-| Dropout       		| keep probability: 50%    		                        |
+| Dropout       		| keep probability: 50%, adjustable                     |
 | Fully connected		| Activation elu, units 100             		        |
-| Dropout       		| keep probability: 50%    		                        |
 | Fully connected		| Activation elu, units 100             		        |
 
 The normalization is performed by a Keras custom layer as Lambda layer on Windows 10 cannot be saved due
@@ -155,11 +162,6 @@ Two training data generators were used during data, one for training data, and a
 shuffle the data first, then generate batches of training data by reading images specified in the corresponding image name
 list into an image list.
 
-The final training consists of 77,101 training samples, and 8,567 validation samples.
-
-The network were able to accomplish over 97% validation accuracy at the initial epoch, and trained models were saved after
-reaching 99.4% validation accuracy. The training time for 60 epochs was around 8200 seconds on a Windows 10 PC with Intel 7700K CPU, GTX1080, and 16GB of RAM.
-
 The initial training contains only the center lane driving samples, and the car went off the road quickly. Corrected driving
 samples were progressively added in seperated trainings until results were acceptable. The followings were observed:
 
@@ -170,12 +172,54 @@ In order to avoid the new samples to become dominate the resulting network, a go
 were also included.
 * The correction training did not use as many epochs as the originl training, but the result of 'correction' was evident.
 
+The training first collect data by trying to drive alone the center of the road. These images
+and their flipped counter parts are show below:
+
+|         		        |               	      | 
+|:---------------------:|:-----------------------:| 
+| ![image3]       		|   	![image4]         | 
+| Clockwise         	|   	Flipped           | 
+| ![image5]       		|   	![image6]         | 
+| Counter Clockwise     |   	Flipped           | 
+
+To train the car to correct itself in problemcaic driving conditions. I have applied two different strategies.
+
+The first strategy is to collect samples by driving alone the edge of the road.
+Then the .csv file is modified by adding a delta to the directions in order to correct the directions. 
+This allows more and consistent correction samples to be collected that will train the car to move back to the center.
+
+The following pictures demonstrate this strategy:
+
+|               		|           	  	      | 
+|:---------------------:|:-----------------------:| 
+| ![image9]             |   	![image10]        | 
+
+The second strategy is to drive the car toward edge of the road, and turn the direction back to move the car back to the center.
+This is to train the car to avoid driving off the road.
+
+|               		|           	  	      | 
+|:---------------------:|:-----------------------:| 
+| ![image7]       		|   	![image8]         | 
+
 ## Results
 
-A typical training and validation loss obtained in one of the trainings is show in the following figure. The validation set has lower loss than the training indicating there is no overfitting issue:
+The final training consists of 92,843 training samples, and 10,316 validation samples.
+
+The training time for 40 epochs was around 6,800 seconds on a Windows 10 PC with Intel 7700K CPU, GTX1080, and 16GB of RAM.
+
+The network were able to accomplish over 97.5% validation accuracy at the initial epoch, and checkpoints were save at each
+epochs that exceedes 99.5% training accuracy. The final training accuracy was above 99.8% and validation accuracy was above
+99.7%.
+
+The training and validation loss obtained during the trainings is show in the following figure.
 
 ![image2]
 
-The test result of the training is demonstrated in the following video:
+The validation loss and the training loss converge between 15 to 20 epochs.
+The the training loss moved slightly below the validation loss. This represents a good fit.
 
-![video1]
+In my prior submission, the trainig loss was higher than the validation loss.
+The was the result of moving the last dropout layer from the second last layer fully connected layer to the flatten layer. The effect of this model change on the validation accuracy is, however, neglectable.
+
+
+The test result of the model with the simulator is demonstrated in [run1.mp4](run1.mp4) video:

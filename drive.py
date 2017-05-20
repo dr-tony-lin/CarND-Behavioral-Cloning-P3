@@ -1,8 +1,12 @@
+'''
+Drive the car in simulator
+'''
 import argparse
 import base64
 from datetime import datetime
 import os
 import shutil
+from io import BytesIO
 
 import numpy as np
 import socketio
@@ -10,36 +14,16 @@ import eventlet
 import eventlet.wsgi
 from PIL import Image
 from flask import Flask
-from io import BytesIO
 
-from keras.engine.topology import Layer
-
-from keras.models import load_model
 import h5py
 from keras import __version__ as keras_version
 
-class Normalization2D(Layer):
-    '''
-    Custom layer for image normalization. This is mainly for Windows 10 annuiversary edition where Lambda
-    layer will cause save to fail
-    '''
-    def __init__(self, **kwargs):
-        super(Normalization2D, self).__init__(**kwargs)
-
-    def build(self, input_shape):
-        super(Normalization2D, self).build(input_shape)  # Be sure to call this somewhere!
-
-    def call(self, x):
-        return (x / 255.0) - 0.5
-
-    def compute_output_shape(self, input_shape):
-        return input_shape
+import model as M
 
 sio = socketio.Server()
 app = Flask(__name__)
 model = None
 prev_image_array = None
-
 
 class SimplePIController:
     def __init__(self, Kp, Ki):
@@ -63,7 +47,7 @@ class SimplePIController:
 
 
 controller = SimplePIController(0.1, 0.002)
-set_speed = 9
+set_speed = 30
 controller.set_desired(set_speed)
 
 
@@ -82,10 +66,9 @@ def telemetry(sid, data):
         image_array = np.asarray(image)
         image_array = image_array.reshape((3, 160, 320))
         steering_angle = float(model.predict(image_array[None, :, :, :], batch_size=1))
-
         throttle = controller.update(float(speed))
 
-        print(steering_angle, throttle)
+        print(steering_angle, speed, throttle)
         send_control(steering_angle, throttle)
 
         # save frame
@@ -139,7 +122,8 @@ if __name__ == '__main__':
         print('You are using Keras version ', keras_version,
               ', but the model was built using ', model_version)
 
-    model = load_model(args.model, custom_objects={'Normalization2D': Normalization2D})
+    # Load the model
+    model = M.load_checkpoint(args.model)
 
     if args.image_folder != '':
         print("Creating image folder at {}".format(args.image_folder))

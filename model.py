@@ -57,6 +57,8 @@ def create_nvidia_model(input_shape, cropping=None, dropout=0.5, leakyRelu=0.02)
     activation5 = LeakyReLU(alpha=leakyRelu)(conv5)
 
     flat = Flatten()(activation5)
+    if dropout is not None:
+        flat = Dropout(dropout)(flat)
 
     # Layer 6
     dense6 = Dense(units=100, use_bias=True, kernel_initializer='glorot_normal',
@@ -73,8 +75,6 @@ def create_nvidia_model(input_shape, cropping=None, dropout=0.5, leakyRelu=0.02)
     # Layer 8
     dense8 = Dense(units=10, use_bias=True, kernel_initializer='glorot_normal',
                    activation='elu')(dense7)
-    if dropout is not None:
-        dense8 = Dropout(dropout)(dense8)
 
     # Layer 9
     dense9 = Dense(units=1, use_bias=True, kernel_initializer='glorot_normal',
@@ -103,6 +103,7 @@ def load_checkpoint(checkpoint, model=None):
     will be loaded from checkpoint_weights.h5
     '''
     if model is None:
+        # We need to provide custom layer classes to load_model() so it can successfully reconstrut the model
         return load_model(checkpoint, custom_objects={'Normalization2D': Normalization2D})
     else:
         return model.load_weights(checkpoint)
