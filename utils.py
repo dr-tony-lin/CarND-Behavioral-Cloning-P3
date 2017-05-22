@@ -3,6 +3,7 @@ Utilities
 '''
 import math
 from os.path import basename
+import platform
 import threading
 import csv
 import numpy as np
@@ -166,7 +167,7 @@ def DrivingDataGenerator(images, data, batch_size=256, channel_first=True):
                 img_out = img_out.reshape((img_out.shape[0], img_out.shape[3], img_out.shape[1], img_out.shape[2]))
             yield (img_out, np.array(data[index:index+batch_size]))
 
-def get_samples(dirs, flip=True, all_cameras=False, cr=[0.2, -0.2]):
+def get_samples(dirs, flip=True, all_cameras=False, cr=[0.05, -0.05]):
     '''
     Get the samples from configured sample folders
     flip - include flipped images
@@ -192,15 +193,15 @@ def get_samples(dirs, flip=True, all_cameras=False, cr=[0.2, -0.2]):
         if all_cameras:
             left = True
             right = True
-        if '<' in folder:
+        if '[' in folder:
             left = True
-            folder = folder.replace('<', '')
-        if '>' in folder:
+            folder = folder.replace('[', '')
+        if ']' in folder:
             right = True
-            folder = folder.replace('>', '')
-        if '!' in folder:
+            folder = folder.replace(']', '')
+        if '^' in folder:
             center = False
-            folder = folder.replace('!', '')
+            folder = folder.replace('^', '')
         if not (left or right or center): # By default center will be used
             center = True
 
@@ -259,8 +260,11 @@ def accept_inputs(callback):
             line = input()
             if line:
                 callback(line.strip().lower())
-
-    thread = threading.Thread(target=_input)
-    thread.setDaemon(True)
-    thread.start()
-    return thread
+    if platform.system() == 'Windows': # WIndows can run in a different thread
+        thread = threading.Thread(target=_input)
+        thread.setDaemon(True)
+        thread.start()
+        return thread
+    else: # other environments need to run in main thread
+        assert threading.current_thread() == threading.main_thread(), "accept_inputs() should be called from main thread!"
+        _input()

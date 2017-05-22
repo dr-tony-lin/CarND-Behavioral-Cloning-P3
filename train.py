@@ -33,7 +33,8 @@ class Trainer(Thread, Callback):
         self.epoch = 0
 
         # Get training samples
-        self.images, self.data = utils.get_samples(dirs=config.dirs, flip=config.flip, all_cameras=config.all_cameras)
+        self.images, self.data = utils.get_samples(dirs=config.dirs, flip=config.flip, all_cameras=config.all_cameras,
+                                                   cr=[config.cr, -config.cr])
         # Randomly shuffle images
         self.images, self.data = shuffle(self.images, self.data)
         # Split the training samples for training and validation
@@ -59,7 +60,7 @@ class Trainer(Thread, Callback):
         plt.ylabel('mean squared error loss')
         plt.xlabel('epoch')
         plt.legend(['training set', 'validation set'], loc='upper right')
-        plt.savefig(file)
+        plt.savefig(self.config.checkpoint_folder + "/" + file)
 
     def _train(self):
         '''
@@ -69,23 +70,38 @@ class Trainer(Thread, Callback):
         training_image_generator = utils.DrivingDataGenerator(self.images, self.data, batch_size=self.config.batch)
         validation_image_generator = utils.DrivingDataGenerator(self.validate_images, self.validate_data,
                                                                 batch_size=self.config.batch)
-
-        if self.config.model is None: # Train new model
-            optimizer = Adam(lr=self.config.lr)
+        if not self.config.cont:
+            # With keras, if a checkpoint is saved in fine tune, then subsequent loading of the_model will fail.
+            # WHile this might be a Kewras bug, the work around is to create the network model first, then load the
+            # wseight. We do this when --cont option is False, as --cont is for continuing previoud training but
+            # this way of loading model will wipe out previous training state.
             self.model = model.create_nvidia_model(input_shape=(3, 160, 320), cropping=((50, 20), (0, 0)),
                                                    dropout=1.0-self.config.drr)
+        if self.config.model is None: # Train new model
+            optimizer = Adam(lr=self.config.lr)
             self.model = model.create_training_model(self.model, optimizer=optimizer)
         else: # Continue from the given training model
             if self.config.cont:
-                print("Continue training from {}".format(self.config.model))
-                self.model = model.load_checkpoint(self.config.model)
+                try:
+                    self.model = model.load_checkpoint(self.config.model)
+                    print("Continue training from {}".format(self.config.model))
+                except ValueError:
+                    print("Cannot continue from previous training, the model was probably saved during fine tune!")
+                    print("Fine tune from {}".format(self.config.model))
+                    self.model = model.create_nvidia_model(input_shape=(3, 160, 320), cropping=((50, 20), (0, 0)),
+                                                           dropout=1.0-self.config.drr)
+                    self.model = model.load_checkpoint(self.config.model, model=self.model)
+                    if self.config.tune: # set the model to fine tune mode
+                        model.set_fine_tune(self.model, True)
+                    optimizer = Adam(lr=self.config.lr)
+                    self.model = model.create_training_model(self.model, optimizer=optimizer)
             else:
-                print("Train from {}".format(self.config.model))
+                print("Fine tune from {}".format(self.config.model))
+                self.model = model.load_checkpoint(self.config.model, model=self.model)
+                if self.config.tune: # set the model to fine tune mode
+                    model.set_fine_tune(self.model, True)
                 optimizer = Adam(lr=self.config.lr)
-                self.model = model.create_nvidia_model(input_shape=(3, 160, 320), cropping=((50, 20), (0, 0)),
-                                                       dropout=1.0-self.config.drr)
                 self.model = model.create_training_model(self.model, optimizer=optimizer)
-                model.load_checkpoint(self.config.model, self.model)
 
         # Train the model
         start_time = time.time()

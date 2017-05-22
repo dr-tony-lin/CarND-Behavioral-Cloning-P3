@@ -22,10 +22,17 @@ tf.app.flags.DEFINE_float('accept', 0.994, "The accepted training validation acc
 tf.app.flags.DEFINE_bool('all_cameras', False, "True to use three cameras, False to use the center camera.")
 tf.app.flags.DEFINE_bool('flip', True, "True to include flipped images")
 tf.app.flags.DEFINE_bool('cont', False, "True to continue from the trained model, False to train from weights")
+tf.app.flags.DEFINE_bool('tune', False, "True to tune trained model")
 
 config = tf.app.flags.FLAGS
 config.save_next = False
 config.dirs = config.dirs.split(':')
+
+# Create checkpoint folder if not exist
+config.checkpoint_folder = os.path.abspath(config.checkpoint[:-len(os.path.basename(config.checkpoint))-1])
+print("Checkpoints will be stored in {0} ...".format(config.checkpoint_folder))
+if not os.path.exists(config.checkpoint_folder):
+    os.makedirs(config.checkpoint_folder)
 
 def lrFromBatch():
     # The optimal learning rate for batch size 256 is 0.001, while the optrimal rate for batch size 16 is about 0.0001.

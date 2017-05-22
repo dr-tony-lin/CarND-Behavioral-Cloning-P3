@@ -13,7 +13,8 @@ The goals / steps of this project are the following:
 [//]: # (Image References)
 
 [image1]: model.png "Model Visualization"
-[image2]: history1.png "Training accuracy"
+[image2]: history.png "Training accuracy"
+[image11]: history-tune.png "Tuning accuracy"
 [image3]: examples/center.png "Drive alone the center of lane"
 [image4]: examples/center-flipped.png  "Drive alone the center of lane flipped"
 [image5]: examples/center_reverse.png "Drive alone the center of lane counter clockwise"
@@ -22,7 +23,6 @@ The goals / steps of this project are the following:
 [image8]: examples/side2.png  "Drive side of road to train correction"
 [image9]: examples/side4.png  "Drive side of road to train correction"
 [image10]: examples/side5.png  "Drive side of road to train correction"
-[video1]: run1.mp4 "Autonomous drive video"
 
 # Files Submitted & Code Quality
 
@@ -59,14 +59,16 @@ python run.py --dirs folder_list --checkpoint checkpoint_name --batch batch_size
 * --checkpoint: Path and base name of checkpoints to to saved for epochs that meet the acceptance threshold
 * --dirs: training sample folders, seperated by ':', default is 'data' folder. The format for a folder is name[+[<][>][!]][*n].
 ```
-To specify which cameras should be used, appends '+' followed by one or more of '<!>' before * to include
-left(<), center(!), and/or right(>) cameras
+To specify which cameras should be used, appends combinations of '[^]' immediately after the name to include
+left([), center(^), and/or right(]) camera images. Only center camera images will be included if any of '[^]' and all_cameras
+option is not given. Furthermore, if either '[' or ']' is specified, but '^' is notall_cameras, then center camera images will
+not be included.
 
 The probability of images in a folder to be used in training and validation process can speficied by appending the name with '*n'
 where 'n' is a number.
 ```
 * --test: testing sample folder, default is None
-* --model: the saved checkopint to load to continue/transfer learning, default is None
+* --model: the trained model checkopint to load to continue/fine tune/transfer learning, default is None
 * --trainings: The number of independent trainings to perform, default is 1
 * --epochs: the number of epochs per train. Default is 200
 * --batch: the batch size, default is 256
@@ -76,7 +78,10 @@ where 'n' is a number.
 * --cr: the left/right cammera correction, default is 0.05
 * --all_cameras: True to use three cameras, False to use the center camera. Default is False
 * --flip: True to include flipped images, Default is True
-* --cont: True to continue from the trained model, False to train from weights, default is False
+* --cont: True to continue from the trained model, False to train from weights, default is False.
+It is effective only when --model is given
+* --tune: True to fine tune trained model, defaule is False. It is only effective when --model
+argument is given and --cont is False
 
 Furthermore, the code can take the following command from the keyboard during the course of training and testing:
 
@@ -91,7 +96,7 @@ Furthermore, the code can take the following command from the keyboard during th
 
 Self driving control can be launched with:
 ```
-python drive.py model max_speed image_folder
+python drive.py model --max_speed image_folder
 ```
 
 * model: the trained model file, e.g. model.h5
@@ -99,6 +104,19 @@ python drive.py model max_speed image_folder
 * image_folder: the folder for storing the driving images
 
 The program can be stopped by entering 'exit' command anytime during the driving.
+
+## Keras Configuration
+
+The program uses channel first image format for better GPU performance. Therefore, *'channel_first'* for image data
+needs to be speficied in *~/.keras/keras.json*, e.g.
+```
+{
+    "epsilon": 1e-07,
+    "image_data_format": "channels_first",
+    "floatx": "float32",
+    "backend": "tensorflow"
+}
+```
 
 # Model Architecture
 
@@ -144,7 +162,6 @@ than LeRu in my experiments
 * Elu is used in the model for the same reason comparing to ReLu and tanh
 * To reduce overfitting, dropout is used in the fully connected network layers
 
-
 ## Training Strategy
 
 Since the trainig process is very time-consuming, I want to be able to save training checkpoint at any time, stop
@@ -172,27 +189,7 @@ It was initially challenging to navigate the car using mouse and keyboard for co
 I collected one set of center lane driving for two laps, one set of center lane driving in the opposite direction, and
 few set of data for corrected driving to teach the car to avoid going off the road. In addition to that, I also used
 the data provided by the course to increase the data set. The actually training included both the original and flipped
-data. Only center lane images were used, and using left/right images did not show evidence of improvement.
-
-## Training
-
-The csv of the data sets stored in different folders during the training were processed first to yield two list, one for
-image names, and another for the directions. The lists were then shuffled randomly, and then splited into the training
-set containing 90% of data, and the validation set containing 10% of the data.
-
-Two training data generators were used during data, one for training data, and another for validation data. The generators
-shuffle the data first, then generate batches of training data by reading images specified in the corresponding image name
-list into an image list.
-
-The initial training contains only the center lane driving samples, and the car went off the road quickly. Corrected driving
-samples were progressively added in seperated trainings until results were acceptable. The followings were observed:
-
-* If we continue training using new samples, the effects of the new sample may be very small, due to learning rate decay
-strategy that will result in very small learning rate.
-* The best results were obtained using the trained weights with a learning rate the is close to the initial learning rate.
-In order to avoid the new samples to become dominate the resulting network, a good portions of orioginal training samples
-were also included.
-* The correction training did not use as many epochs as the originl training, but the result of 'correction' was evident.
+data.
 
 The training first collect data by trying to drive alone the center of the road. These images
 and their flipped counter parts are show below:
@@ -204,7 +201,7 @@ and their flipped counter parts are show below:
 | ![image5]       		|   	![image6]         | 
 | Counter Clockwise     |   	Flipped           | 
 
-To train the car to correct itself in problemcaic driving conditions. I have applied two different strategies.
+To train the car to correct itself in problematic conditions. I have applied two different strategies.
 
 The first strategy is to collect samples by driving alone the edge of the road.
 Then the .csv file is modified by adding a delta to the directions in order to correct the directions. 
@@ -223,25 +220,53 @@ This is to train the car to avoid driving off the road.
 |:---------------------:|:-----------------------:| 
 | ![image7]       		|   	![image8]         | 
 
+## Training
+
+The csv of the data sets stored in different folders during the training were processed first to yield two list, one for
+image names, and another for the directions. The lists were then shuffled randomly, and then splited into the training
+set containing 90% of data, and the validation set containing 10% of the data.
+
+Two training data generators were used during data, one for training data, and another for validation data. The generators
+shuffle the data first, then generate batches of training data by reading images specified in the corresponding image name
+list into an image list.
+
+## Tuning
+The initial training contains only the center lane driving samples, and the car went off the road quickly. Corrected driving
+samples were progressively added in seperated trainings until results were acceptable. The followings were observed:
+
+* If we continue training using new samples, the effects of the new sample may be very small, due to learning rate decay
+strategy that will result in very small learning rate.
+* The best results were obtained using the trained weights with a learning rate the is close to the initial learning rate.
+In order to avoid the new samples to become dominate the resulting network, a good portions of orioginal training samples
+were also included.
+* The correction training did not use as many epochs as the originl training, but the result of 'correction' was evident.
+
+During tuning, weights of the convolutional layer were freezed using the --tune commandline options, and the fully connected
+network layers were fine-tuned.
+
 ## Results
 
-The final training consists of 92,843 training samples, and 10,316 validation samples.
+The final training consists of 96,874 training samples, and 10,764 validation samples.
 
 The training time for 40 epochs was around 6,800 seconds on a Windows 10 PC with Intel 7700K CPU, GTX1080, and 16GB of RAM.
 
 The network were able to accomplish over 97.5% validation accuracy at the initial epoch, and checkpoints were save at each
-epochs that exceedes 99.5% training accuracy. The final training accuracy was above 99.8% and validation accuracy was above
-99.7%.
+epochs that exceedes 99.5% training accuracy. The final training and validation accuracy was above 99.9%.
 
-The training and validation loss obtained during the trainings is show in the following figure.
+The final trained model went through further fine tunes by applying a subset of the original samples and new samples created
+to improve the driving.
+
+The training and validation loss obtained during the trainings and one of the tunings are show in the following figure.
 
 ![image2]
+![image11]
+
 
 The validation loss and the training loss converge between 15 to 20 epochs.
 The the training loss moved slightly below the validation loss. This represents a good fit.
 
 In my prior submission, the trainig loss was higher than the validation loss.
-The was the result of moving the last dropout layer from the second last layer fully connected layer to the flatten layer. The effect of this model change on the validation accuracy is, however, neglectable.
-
+The was the result of moving the last dropout layer from the second last layer fully connected layer to the flatten layer.
+The effect of this model change on the validation accuracy is, however, neglectable.
 
 The test result of the model with the simulator is demonstrated in [run1.mp4](run1.mp4) video:

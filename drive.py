@@ -18,6 +18,7 @@ from PIL import Image
 from flask import Flask
 
 import h5py
+import tensorflow as tf
 from keras import __version__ as keras_version
 
 import utils
@@ -48,23 +49,32 @@ class SimplePIController:
         return self.Kp * self.error + self.Ki * self.integral
 
 class DriveServer(Thread):
-    def __init__(self, checkpoint, max_speed):
+    def __init__(self, checkpoint, max_speed=30, min_speed=9, cpu_only=False):
         super().__init__()
         self.checkpoint = checkpoint
+        self.cpu_only = cpu_only
         self.model = None
         self.controller = SimplePIController(0.1, 0.002)
         self.max_speed = max_speed
+        self.min_speed = min_speed
         self.controller.set_desired(max_speed)
 
     def run(self):
         global app
         app = socketio.Middleware(sio, app)
         # Load the trained model
-        self.model = M.load_checkpoint(self.checkpoint)
+        self.model = M.create_nvidia_model(input_shape=(3, 160, 320), cropping=((50, 20), (0, 0)))
+        if self.cpu_only:
+            print("Use CPU only ...")
+            with tf.device('/cpu:0'):
+                self.model = M.load_checkpoint(self.checkpoint, model=self.model)
+        else:
+            print("Use GPU if available ...")
+            self.model = M.load_checkpoint(self.checkpoint, model=self.model)
         # deploy as an eventlet WSGI server
         eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
 
-server_thread = None
+server = None
 def send_control(steering_angle, throttle):
     sio.emit(
         "steer",
@@ -93,9 +103,10 @@ def telemetry(sid, data):
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
         image_array = image_array.reshape((3, 160, 320))
-        steering_angle = float(server_thread.model.predict(image_array[None, :, :, :], batch_size=1))
-        throttle = server_thread.controller.update(float(speed))
-        server_thread.controller.set_desired(5+math.pow(1.0-abs(steering_angle), 2)*(server_thread.max_speed - 5))
+        steering_angle = float(server.model.predict(image_array[None, :, :, :], batch_size=1))
+        throttle = server.controller.update(float(speed))
+        server.controller.set_desired(server.min_speed + math.pow(1.0-abs(steering_angle), 2)
+                                      * (server.max_speed-server.min_speed))
         print(steering_angle, speed, throttle)
         send_control(steering_angle, throttle)
 
@@ -115,12 +126,34 @@ if __name__ == '__main__':
         type=str,
         help='Path to model h5 file. Model should be on the same path.'
     )
+
     parser.add_argument(
-        'max_speed',
+        '--max_mph',
+        dest='max_mph',
         type=int,
+        nargs='?',
         default=20,
-        help='Maximum driving speed.'
+        help='Maximum driving speed, default is 20 mph, limit is 30 mph'
     )
+
+    parser.add_argument(
+        '--min_mph',
+        dest='min_mph',
+        type=int,
+        nargs='?',
+        default=9,
+        help='Maximum driving speed, default is 9 mph.'
+    )
+
+    parser.add_argument(
+        '--cpu_only',
+        dest='cpu_only',
+        type=bool,
+        nargs='?',
+        default=False,
+        help='Use cpu only, useful to test current training results.'
+    )
+
     parser.add_argument(
         'image_folder',
         type=str,
@@ -151,11 +184,12 @@ if __name__ == '__main__':
     else:
         print("NOT RECORDING THIS RUN ...")
 
-    server_thread = DriveServer(args.model, args.max_speed)
+    server = DriveServer(args.model, args.max_mph, args.min_mph, args.cpu_only)
 
     def command_handler(command):
         '''
-        Handler user command
+        Handler exit command. Very often on Windows, it is hard to terminate the driving process.
+        This makes it a lot easier to terminate the process.
         '''
         if command == 'exit':
             print("Exiting ...")
@@ -163,7 +197,6 @@ if __name__ == '__main__':
         else:
             print("Unknown command: {}!".format(command))
 
-    input_thread = utils.accept_inputs(command_handler)
-
-    server_thread.start()
-    server_thread.join()
+    server.start()
+    utils.accept_inputs(command_handler)
+    server.join()

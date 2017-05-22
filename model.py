@@ -104,9 +104,12 @@ def load_checkpoint(checkpoint, model=None):
     '''
     if model is None:
         # We need to provide custom layer classes to load_model() so it can successfully reconstrut the model
-        return load_model(checkpoint, custom_objects={'Normalization2D': Normalization2D})
+        model = load_model(checkpoint, custom_objects={'Normalization2D': Normalization2D})
+        print(model)
+        return model
     else:
-        return model.load_weights(checkpoint)
+        model.load_weights(checkpoint)
+        return model
 
 def create_training_model(model, optimizer='ADAM', loss='mean_squared_error'):
     '''
@@ -127,6 +130,18 @@ def create_test_model(model, loss='mean_squared_error'):
     '''
     model.compile(optimizer='ADAM', loss=loss, metrics=[metrics.mean_squared_error])
     return model
+
+def set_fine_tune(model, on=True):
+    '''
+    Turn fine tune mode on or off
+    on: True to turn on fine tune, False to tuen off
+
+    '''
+    layers = model.layers
+    for layer in layers:
+        if isinstance(layer, Conv2D):
+            print("Turn {0} training for layer: {1}".format('off' if on else 'on', layer.name))
+            layer.trainable = not on
 
 def train_model(model, train_generator, validation_generator, train_steps, validation_steps, config, callbacks=None):
     '''
