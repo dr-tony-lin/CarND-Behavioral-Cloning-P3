@@ -96,12 +96,13 @@ Furthermore, the code can take the following command from the keyboard during th
 
 Self driving control can be launched with:
 ```
-python drive.py model --max_speed image_folder
+python drive.py model image_folder --min_mph min --max_mph max
 ```
 
 * model: the trained model file, e.g. model.h5
-* max_speed: the maximum car speed
 * image_folder: the folder for storing the driving images
+* --max_mph: the maximal speed (mph), the default is 30 mph
+* --min_mph: the minimal speed (mph), the default is 15 mph
 
 The program can be stopped by entering 'exit' command anytime during the driving.
 
@@ -250,7 +251,7 @@ The final training consists of 96,874 training samples, and 10,764 validation sa
 
 The training time for 40 epochs was around 6,800 seconds on a Windows 10 PC with Intel 7700K CPU, GTX1080, and 16GB of RAM.
 
-The network were able to accomplish over 97.5% validation accuracy at the initial epoch. The final training and 
+The network were able to accomplish over 99.7% validation accuracy at the initial epoch. The final training and 
 validation accuracy was above 99.8%.
 
 The final trained model went through two further fine tunes by applying a subset of the original samples and new samples created
@@ -271,4 +272,5 @@ In my prior submission, the trainig loss was higher than the validation loss.
 The was the result of moving the last dropout layer from the second last layer fully connected layer to the flatten layer.
 The effect of this model change on the validation accuracy is, however, neglectable.
 
-The test result of the model with the simulator is demonstrated in [run1.mp4](run1.mp4) video:
+The final trained model is in **model.h5**, the original trained model is in **model-0.h5**.
+The driving test result of *model.h5* with maximal **30 mph**, and minimal **15 mph** is demonstrated in [run1.mp4](run1.mp4) video:

@@ -50,6 +50,12 @@ class SimplePIController:
 
 class DriveServer(Thread):
     def __init__(self, checkpoint, max_speed=30, min_speed=9, cpu_only=False):
+        '''
+        checkpoint: Base name of the checkpoint
+        max_speed: maximal speed
+        min_speed: minimal speed
+        cpu_only: True to use CPU only, False for default setting
+        '''
         super().__init__()
         self.checkpoint = checkpoint
         self.cpu_only = cpu_only
@@ -58,24 +64,44 @@ class DriveServer(Thread):
         self.max_speed = max_speed
         self.min_speed = min_speed
         self.controller.set_desired(max_speed)
+        self.session = None
 
     def run(self):
+        '''
+        Rune the thread
+        '''
         global app
         app = socketio.Middleware(sio, app)
         # Load the trained model
-        self.model = M.create_nvidia_model(input_shape=(3, 160, 320), cropping=((50, 20), (0, 0)))
+        self.session = tf.Session()
         if self.cpu_only:
             print("Use CPU only ...")
             with tf.device('/cpu:0'):
+                self.model = M.create_nvidia_model(input_shape=(3, 160, 320), cropping=((50, 20), (0, 0)))
                 self.model = M.load_checkpoint(self.checkpoint, model=self.model)
         else:
             print("Use GPU if available ...")
+            self.model = M.create_nvidia_model(input_shape=(3, 160, 320), cropping=((50, 20), (0, 0)))
             self.model = M.load_checkpoint(self.checkpoint, model=self.model)
         # deploy as an eventlet WSGI server
         eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
 
     def predict(self, *args, **kwargs):
+        '''
+        Make prediction
+        '''
         return float(self.model.predict(*args, **kwargs))
+
+    def close_session(self):
+        '''
+        Close current tensorflow session
+        '''
+        if self.session is not None:
+            try:
+                self.session.close()
+                self.session = None
+            except:
+                pass
 
 server = None
 def send_control(steering_angle, throttle):
@@ -135,7 +161,7 @@ if __name__ == '__main__':
         dest='max_mph',
         type=int,
         nargs='?',
-        default=20,
+        default=30,
         help='Maximum driving speed, default is 20 mph, limit is 30 mph'
     )
 
@@ -144,7 +170,7 @@ if __name__ == '__main__':
         dest='min_mph',
         type=int,
         nargs='?',
-        default=9,
+        default=15,
         help='Maximum driving speed, default is 9 mph.'
     )
 
