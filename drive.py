@@ -74,6 +74,9 @@ class DriveServer(Thread):
         # deploy as an eventlet WSGI server
         eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
 
+    def predict(self, *args, **kwargs):
+        return float(self.model.predict(*args, **kwargs))
+
 server = None
 def send_control(steering_angle, throttle):
     sio.emit(
@@ -103,7 +106,7 @@ def telemetry(sid, data):
         image = Image.open(BytesIO(base64.b64decode(imgString)))
         image_array = np.asarray(image)
         image_array = image_array.reshape((3, 160, 320))
-        steering_angle = float(server.model.predict(image_array[None, :, :, :], batch_size=1))
+        steering_angle = server.predict(image_array[None, :, :, :], batch_size=1)
         throttle = server.controller.update(float(speed))
         server.controller.set_desired(server.min_speed + math.pow(1.0-abs(steering_angle), 2)
                                       * (server.max_speed-server.min_speed))

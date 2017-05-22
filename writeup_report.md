@@ -250,20 +250,22 @@ The final training consists of 96,874 training samples, and 10,764 validation sa
 
 The training time for 40 epochs was around 6,800 seconds on a Windows 10 PC with Intel 7700K CPU, GTX1080, and 16GB of RAM.
 
-The network were able to accomplish over 97.5% validation accuracy at the initial epoch, and checkpoints were save at each
-epochs that exceedes 99.5% training accuracy. The final training and validation accuracy was above 99.9%.
+The network were able to accomplish over 97.5% validation accuracy at the initial epoch. The final training and 
+validation accuracy was above 99.8%.
 
-The final trained model went through further fine tunes by applying a subset of the original samples and new samples created
+The final trained model went through two further fine tunes by applying a subset of the original samples and new samples created
 to improve the driving.
 
-The training and validation loss obtained during the trainings and one of the tunings are show in the following figure.
+The training and validation loss obtained during the trainings and the final tuning are show in the following figure.
 
 ![image2]
 ![image11]
 
+The validation loss and the training loss converge between 15 to 25 epochs. The the training loss moved slightly below the validation loss.
+This represents a good fit.
 
-The validation loss and the training loss converge between 15 to 20 epochs.
-The the training loss moved slightly below the validation loss. This represents a good fit.
+For the final model, the trained model at epoch 22 was picked for further training as it has the lowest validation accuracy, and it 
+performs marginally better than the final epoch in the driving tests.
 
 In my prior submission, the trainig loss was higher than the validation loss.
 The was the result of moving the last dropout layer from the second last layer fully connected layer to the flatten layer.
