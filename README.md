@@ -1,118 +1,271 @@
-# Behaviorial Cloning Project
+# Behavioral Cloning Using Keras
 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
-
-Overview
----
-This repository contains starting files for the Behavioral Cloning Project.
-
-In this project, you will use what you've learned about deep neural networks and convolutional neural networks to clone driving behavior. You will train, validate and test a model using Keras. The model will output a steering angle to an autonomous vehicle.
-
-We have provided a simulator where you can steer a car around a track for data collection. You'll use image data and steering angles to train a neural network and then use this model to drive the car autonomously around the track.
-
-We also want you to create a detailed writeup of the project. Check out the [writeup template](https://github.com/udacity/CarND-Behavioral-Cloning-P3/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup. The writeup can be either a markdown file or a pdf document.
-
-To meet specifications, the project will require submitting five files: 
-* model.py (script used to create and train the model)
-* drive.py (script to drive the car - feel free to modify this file)
-* model.h5 (a trained Keras model)
-* a report writeup file (either markdown or pdf)
-* video.mp4 (a video recording of your vehicle driving autonomously around the track for at least one full lap)
-
-This README file describes how to output the video in the "Details About Files In This Directory" section.
-
-Creating a Great Writeup
----
-A great writeup should include the [rubric points](https://review.udacity.com/#!/rubrics/432/view) as well as your description of how you addressed each point.  You should include a detailed description of the code used (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
-
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
-
-The Project
----
 The goals / steps of this project are the following:
-* Use the simulator to collect data of good driving behavior 
-* Design, train and validate a model that predicts a steering angle from image data
-* Use the model to drive the vehicle autonomously around the first track in the simulator. The vehicle should remain on the road for an entire loop around the track.
+* Use the simulator to collect data of good driving behavior
+* Build, a convolution neural network in Keras that predicts steering angles from images
+* Train and validate the model with a training and validation set
+* Test that the model successfully drives around track one without leaving the road
 * Summarize the results with a written report
 
-### Dependencies
-This lab requires:
 
-* [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit)
+[//]: # (Image References)
 
-The lab enviroment can be created with CarND Term1 Starter Kit. Click [here](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) for the details.
+[image1]: model.png "Model Visualization"
+[image2]: history.png "Training accuracy"
+[image11]: history-tune.png "Tuning accuracy"
+[image3]: examples/center.png "Drive alone the center of lane"
+[image4]: examples/center-flipped.png  "Drive alone the center of lane flipped"
+[image5]: examples/center_reverse.png "Drive alone the center of lane counter clockwise"
+[image6]: examples/center-reverse-flipped.png "Drive alone the center of lane counter clockwise and flipped"
+[image7]: examples/side1.png "Drive side of road to train correction"
+[image8]: examples/side2.png  "Drive side of road to train correction"
+[image9]: examples/side4.png  "Drive side of road to train correction"
+[image10]: examples/side5.png  "Drive side of road to train correction"
 
-The following resources can be found in this github repository:
-* drive.py
-* video.py
-* writeup_template.md
+# Files Submitted & Code Quality
 
-The simulator can be downloaded from the classroom. In the classroom, we have also provided sample data that you can optionally use to help train your model.
+This project includes the following files:
+* run.py: the main entry point for controlling the training and testing process
+* config.py: processing command line arguments
+* utils.py: containing utilities functions
+* train.py: containing the code for training and testing the model
+* model.py: containing the code for creating, running training/testing, and saving the model
+* drive.py: for driving the car in autonomous mode
+* model.h5: containing a trained convolution neural network 
+* writeup_report.md: summarizing the results
 
-## Details About Files In This Directory
+All major functions in the code provide docstring and comments.
 
-### `drive.py`
+# Usage Guide
 
-Usage of `drive.py` requires you have saved the trained model as an h5 file, i.e. `model.h5`. See the [Keras documentation](https://keras.io/getting-started/faq/#how-can-i-save-a-keras-model) for how to create this file using the following command:
-```sh
-model.save(filepath)
+## Autonomous driving with a pre-trained model
+Using the Udacity provided simulator and drive.py file, the car can be driven autonomously around the track by executing 
 ```
-
-Once the model has been saved, it can be used with drive.py using this command:
-
-```sh
 python drive.py model.h5
 ```
 
-The above command will load the trained model and use the model to make predictions on individual images in real-time and send the predicted angle back to the server via a websocket connection.
+## Training
 
-Note: There is known local system's setting issue with replacing "," with "." when using drive.py. When this happens it can make predicted steering values clipped to max/min values. If this occurs, a known fix for this is to add "export LANG=en_US.utf8" to the bashrc file.
+Training and testing can be launched with the following command:
 
-#### Saving a video of the autonomous agent
-
-```sh
-python drive.py model.h5 run1
+```
+python run.py --dirs folder_list --checkpoint checkpoint_name --batch batch_size --accept threshold --epochs epochs --all_cameras boolean --flip boolean
 ```
 
-The fourth argument `run1` is the directory to save the images seen by the agent to. If the directory already exists it'll be overwritten.
+Where:
 
-```sh
-ls run1
+* --checkpoint: Path and base name of checkpoints to to saved for epochs that meet the acceptance threshold
+* --dirs: training sample folders, seperated by ':', default is 'data' folder. The format for a folder is name[+[<][>][!]][*n].
 
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_424.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_451.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_477.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_528.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_573.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_618.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_697.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_723.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_749.jpg
-[2017-01-09 16:10:23 EST]  12KiB 2017_01_09_21_10_23_817.jpg
-...
+>To specify which cameras should be used, appends combinations of '[^]' immediately after the name to include left([), center(^), and/or right(]) camera images. Only center camera images will be included if any of '[^]' and all_cameras option is not given. Furthermore, if either '[' or ']' is specified, but '^' is notall_cameras, then center camera images will not be included.
+>
+>The probability of images in a folder to be used in training and validation process can speficied by appending the name with '*n'
+where 'n' is a number.
+
+* --test: testing sample folder, default is None
+* --model: the trained model checkopint to load to continue/fine tune/transfer learning, default is None
+* --trainings: The number of independent trainings to perform, default is 1
+* --epochs: the number of epochs per train. Default is 200
+* --batch: the batch size, default is 256
+* --lr: the learning rate. Default is None, and will be inferred automatically depending on the batch size
+* --drr: the dropout retention ratio, default is 0.5
+* --accept: the accepted training validation accuracy. Default is 0.994
+* --cr: the left/right cammera correction, default is 0.05
+* --all_cameras: True to use three cameras, False to use the center camera. Default is False
+* --flip: True to include flipped images, Default is True
+* --cont: True to continue from the trained model, False to train from weights, default is False.
+It is effective only when --model is given
+* --tune: True to fine tune trained model, defaule is False. It is only effective when --model
+argument is given and --cont is False
+
+Furthermore, the code can take the following command from the keyboard during the course of training and testing:
+
+1. *accept*: change the accepted accuracy, e.g. *accept 0.994*
+2. *save*: save currently trained model when the current epoch is completed
+3. *train*: start training if it has not yet been started
+4. *test*: start test against all saved models in the desginated checkpoint folders
+5. *stop*: stop training after the current epoch
+4. *exit*: exit the program
+
+## Driving
+
+Self driving control can be launched with:
+```
+python drive.py model image_folder --min_mph min --max_mph max
 ```
 
-The image file name is a timestamp when the image image was seen. This information is used by `video.py` to create a chronological video of the agent driving.
+* model: the trained model file, e.g. model.h5
+* image_folder: the folder for storing the driving images
+* --max_mph: the maximal speed (mph), the default is 30 mph
+* --min_mph: the minimal speed (mph), the default is 15 mph
 
-### `video.py`
+The program can be stopped by entering 'exit' command anytime during the driving.
 
-```sh
-python video.py run1
+## Keras Configuration
+
+The program uses channel first image format for better GPU performance. Therefore, *'channel_first'* for image data
+needs to be speficied in *~/.keras/keras.json*, e.g.
+```
+{
+    "epsilon": 1e-07,
+    "image_data_format": "channels_first",
+    "floatx": "float32",
+    "backend": "tensorflow"
+}
 ```
 
-Create a video based on images found in the `run1` directory. The name of the video will be name of the directory following by `'.mp4'`, so, in this case the video will be `run1.mp4`.
+# Model Architecture
 
-Optionally one can specify the FPS (frames per second) of the video:
+## The model architecture
 
-```sh
-python video.py run1 --fps 48
-```
+My model consists of a convolution neural network based on Nvidia Self-Driving Car model as follows:
 
-The video will run at 48 FPS. The default FPS is 60.
+![image1]
 
-#### Why create a video
+| Layer         		|     Description	        					        | 
+|:---------------------:|:-----------------------------------------------------:| 
+| Input         		| 3*160*320 RGB image   					            | 
+| Cropping2D         	| Crop input image to 3*90*320              	        | 
+| Normalization2D       | Custom layer to normalize image                       | 
+| Convolution 5x5     	| 2x2 stride, valid padding, filters 24  	            |
+| Leaky RELU			|												        |
+| Convolution 5x5     	| 2x2 stride, valid padding, filters 36                 |
+| Leaky RELU			|												        |
+| Convolution 5x5     	| 2x2 stride, valid padding, filters 48     	        |
+| Leaky RELU			|												        |
+| Convolution 3x3     	| 1x1 stride, valid padding, filters 64      	        |
+| Leaky RELU			|												        |
+| Convolution 3x3     	| 1x1 stride, valid padding, filters 64      	        |
+| Leaky RELU			|												        |
+| Dropout       		| keep probability: 50%, adjustable                     |
+| Fully connected		| Activation elu, units 100             		        |
+| Dropout       		| keep probability: 50%, adjustable                     |
+| Fully connected		| Activation elu, units 100             		        |
+| Dropout       		| keep probability: 50%, adjustable                     |
+| Fully connected		| Activation elu, units 100             		        |
+| Fully connected		| Activation elu, units 100             		        |
 
-1. It's been noted the simulator might perform differently based on the hardware. So if your model drives succesfully on your machine it might not on another machine (your reviewer). Saving a video is a solid backup in case this happens.
-2. You could slightly alter the code in `drive.py` and/or `video.py` to create a video of what your model sees after the image is processed (may be helpful for debugging).
+The normalization is performed by a Keras custom layer as Lambda layer on Windows 10 cannot be saved due
+to some unicode problem. All convolution layers used Leaky ReLu for activation, and all the fully connected
+network layer uses elu for activation.
+
+## Model Architecture Strategy
+
+The mode architecture is based on Nvidia Self-Driving Car CNN architecture with the following differences:
+
+* The model uses Leaky ReLu in the convolution layers as it has shown to be able to produce better performance
+than LeRu in my experiments
+* Elu is used in the model for the same reason comparing to ReLu and tanh
+* To reduce overfitting, dropout is used in the fully connected network layers
+
+## Training Strategy
+
+Since the trainig process is very time-consuming, I want to be able to save training checkpoint at any time, stop
+the training process, test it with the simulator, and resume the training with existing samples for better accuracy
+or with new samples for improving handling of driving conditions , I also have im plemented extra functionalities
+in the program as described in the **Usage Guide** section.
+
+The training process has the following characteristics:
+* The training samples are splitted into 90% training set and 10% validation set
+* A seperate test set can be specified to ensure that it can be completely hidden during the entire training process 
+* Adam optimizer is used for training for faster training and improved accuracy
+* Mean squared error is used as the loss function However, due to time constraints, other loss functions like mean
+absolute error has not yet been tried.
+
+In addition, it uses the following callbacks during the training:
+
+* ReduceLROnPlateau: to reduce learning rate when training stopped improving, this has improved the overally training
+accuracy
+* TernsorBoard: to produce logs for TensorBoard analysis
+* End of Epoch: to save trained model to checkpoint at the end of an epoch if the training accuracy is above the threshold
+
+## Data Collection
+
+It was initially challenging to navigate the car using mouse and keyboard for collect training data using. Eventually,
+I collected one set of center lane driving for two laps, one set of center lane driving in the opposite direction, and
+few set of data for corrected driving to teach the car to avoid going off the road. In addition to that, I also used
+the data provided by the course to increase the data set. The actually training included both the original and flipped
+data.
+
+The training first collect data by trying to drive alone the center of the road. These images
+and their flipped counter parts are show below:
+
+|         		        |               	      | 
+|:---------------------:|:-----------------------:| 
+| ![image3]       		|   	![image4]         | 
+| Clockwise         	|   	Flipped           | 
+| ![image5]       		|   	![image6]         | 
+| Counter Clockwise     |   	Flipped           | 
+
+To train the car to correct itself in problematic conditions. I have applied two different strategies.
+
+The first strategy is to collect samples by driving alone the edge of the road.
+Then the .csv file is modified by adding a delta to the directions in order to correct the directions. 
+This allows more and consistent correction samples to be collected that will train the car to move back to the center.
+
+The following pictures demonstrate this strategy:
+
+|               		|           	  	      | 
+|:---------------------:|:-----------------------:| 
+| ![image9]             |   	![image10]        | 
+
+The second strategy is to drive the car toward edge of the road, and turn the direction back to move the car back to the center.
+This is to train the car to avoid driving off the road.
+
+|               		|           	  	      | 
+|:---------------------:|:-----------------------:| 
+| ![image7]       		|   	![image8]         | 
+
+## Training
+
+The csv of the data sets stored in different folders during the training were processed first to yield two list, one for
+image names, and another for the directions. The lists were then shuffled randomly, and then splited into the training
+set containing 90% of data, and the validation set containing 10% of the data.
+
+Two training data generators were used during data, one for training data, and another for validation data. The generators
+shuffle the data first, then generate batches of training data by reading images specified in the corresponding image name
+list into an image list.
+
+## Tuning
+The initial training contains only the center lane driving samples, and the car went off the road quickly. Corrected driving
+samples were progressively added in seperated trainings until results were acceptable. The followings were observed:
+
+* If we continue training using new samples, the effects of the new sample may be very small, due to learning rate decay
+strategy that will result in very small learning rate.
+* The best results were obtained using the trained weights with a learning rate the is close to the initial learning rate.
+In order to avoid the new samples to become dominate the resulting network, a good portions of orioginal training samples
+were also included.
+* The correction training did not use as many epochs as the originl training, but the result of 'correction' was evident.
+
+During tuning, weights of the convolutional layer were freezed using the --tune commandline options, and the fully connected
+network layers were fine-tuned.
+
+## Results
+
+The final training consists of 96,874 training samples, and 10,764 validation samples.
+
+The training time for 40 epochs was around 6,800 seconds on a Windows 10 PC with Intel 7700K CPU, GTX1080, and 16GB of RAM.
+
+The network were able to accomplish over 99.7% validation accuracy at the initial epoch. The final training and 
+validation accuracy was above 99.8%.
+
+The final trained model went through two further fine tunes by applying a subset of the original samples and new samples created
+to improve the driving.
+
+The training and validation loss obtained during the trainings and the final tuning are show in the following figure.
+
+![image2]
+![image11]
+
+The validation loss and the training loss converge between 15 to 25 epochs. The the training loss moved slightly below the validation loss.
+This represents a good fit.
+
+For the final model, the trained model at epoch 22 was picked for further training as it has the lowest validation accuracy, and it 
+performs marginally better than the final epoch in the driving tests.
+
+In my prior submission, the trainig loss was higher than the validation loss.
+The was the result of moving the last dropout layer from the second last layer fully connected layer to the flatten layer.
+The effect of this model change on the validation accuracy is, however, neglectable.
+
+The final trained model is in **model.h5**, the original trained model is in **model-0.h5**.
+The driving test result of *model.h5* with maximal **30 mph**, and minimal **15 mph** is demonstrated in [run1.mp4](run1.mp4) video:

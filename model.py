@@ -31,7 +31,9 @@ def create_nvidia_model(input_shape, cropping=None, dropout=0.5, leakyRelu=0.02)
     # On Windows 10 anniversary Lambda will fail to serialize, use custom layer to avoid this issue
     normalization = Normalization2D()(cropping) #Lambda(lambda x: (x / 255.0) - 0.5)(cropping)
 
-    # Layer 1
+    # Layer 1. glorot initialization is also called xavier initialization where the variance of weights
+    # equals to 2 / (in + out), where in and out are the number of neurons in inputs and outputs respectively
+    # It will prevent the signal popagation to between too small or to large.
     conv1 = Conv2D(filters=24, kernel_size=5, strides=(2, 2), padding='valid',
                    use_bias=True, kernel_initializer='glorot_normal')(normalization)
     activation1 = LeakyReLU(alpha=leakyRelu)(conv1)
